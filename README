@@ -1,0 +1,6 @@
+ISEL - DEETC - LEIC - Concurrent Programming
+Source Code for first series of exercises.
+
+Java folder contains exercises 3 and 4:
+  - PhasedGate
+  - TransientSignal
