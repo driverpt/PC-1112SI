@@ -1,4 +1,1 @@
-/C#/bin
-/C#/obj
-/C#/CSharp.5.1.ReSharper.user
-/C#/_ReSharper.CSharp
+*.class
