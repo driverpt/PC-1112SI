@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Collections.Generic;
+using System.Threading;
 
 namespace CSharp
 {
@@ -27,8 +28,11 @@ namespace CSharp
                 {
                     if ( !Monitor.Wait( _monitor, timeout ) )
                     {
-                        yours = default( T );
-                        return false;
+                        if( request.his != null )
+                        {
+                            yours = request.his;
+                            return true;
+                        }
                     }
                     _request.mine = mine;
                 }
