@@ -43,6 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CSharpContextSwitch.cs" />
     <Compile Include="Exchanger.cs" />
     <Compile Include="SyncUtils.cs" />
     <Compile Include="Program.cs" />
