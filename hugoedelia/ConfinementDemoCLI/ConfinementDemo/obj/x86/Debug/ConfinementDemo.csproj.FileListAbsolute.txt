@@ -1,0 +1,9 @@
+C:\My Stuff\Work\DEETC\PC\11_12_Inv\CLI\ConfinementDemo\ConfinementDemo\bin\Debug\ConfinementDemo.exe
+C:\My Stuff\Work\DEETC\PC\11_12_Inv\CLI\ConfinementDemo\ConfinementDemo\bin\Debug\ConfinementDemo.pdb
+C:\My Stuff\Work\DEETC\PC\11_12_Inv\CLI\ConfinementDemo\ConfinementDemo\obj\x86\Debug\ResolveAssemblyReference.cache
+C:\My Stuff\Work\DEETC\PC\11_12_Inv\CLI\ConfinementDemo\ConfinementDemo\obj\x86\Debug\ConfinementDemo.Form1.resources
+C:\My Stuff\Work\DEETC\PC\11_12_Inv\CLI\ConfinementDemo\ConfinementDemo\obj\x86\Debug\ConfinementDemo.Properties.Resources.resources
+C:\My Stuff\Work\DEETC\PC\11_12_Inv\CLI\ConfinementDemo\ConfinementDemo\obj\x86\Debug\GenerateResource.read.1.tlog
+C:\My Stuff\Work\DEETC\PC\11_12_Inv\CLI\ConfinementDemo\ConfinementDemo\obj\x86\Debug\GenerateResource.write.1.tlog
+C:\My Stuff\Work\DEETC\PC\11_12_Inv\CLI\ConfinementDemo\ConfinementDemo\obj\x86\Debug\ConfinementDemo.exe
+C:\My Stuff\Work\DEETC\PC\11_12_Inv\CLI\ConfinementDemo\ConfinementDemo\obj\x86\Debug\ConfinementDemo.pdb
