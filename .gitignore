@@ -1,3 +1,4 @@
+*.class
 *.[Cc]ache
 *.csproj.user
 *.[Rr]e[Ss]harper*
