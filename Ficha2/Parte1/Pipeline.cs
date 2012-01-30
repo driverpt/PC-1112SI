@@ -33,10 +33,13 @@ namespace Parte1
         {
             var outputBuffer = new BlockingCollection<TOutput>();
             ++Program.NumberOfTasks;
-            var task = Task.Factory.StartNew( () => DoFillBuffer( source, outputBuffer ), CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default );
+            var task = Task.Factory.StartNew( () => DoFillBuffer( source, outputBuffer ), token, TaskCreationOptions.None, TaskScheduler.Default );
+            
+            foreach ( var outputElement in outputBuffer.GetConsumingEnumerable( token ) )
+            {
+                yield return outputElement;
+            }
             task.Wait();
-            outputBuffer.CompleteAdding();
-            return outputBuffer.GetConsumingEnumerable( token );
         }
 
         protected virtual void DoFillBuffer( IEnumerable<TInput> source, BlockingCollection<TOutput> outputBuffer )
@@ -46,18 +49,19 @@ namespace Parte1
                 var outputElement = _currentStage(inputElement);
                 outputBuffer.Add(outputElement);
             }
+            outputBuffer.CompleteAdding();
         }
 
         /* executa o pipeline sem possibilidade de cancelamento. */
-        public IEnumerable<TOutput> Run( IEnumerable<TInput> _source )
+        public IEnumerable<TOutput> Run( IEnumerable<TInput> source )
         {
-            return Run( _source, new CancellationToken(false) );
+            return Run( source, new CancellationToken() );
         }
 
         private class PipelineExtension<TNextOutput> : Pipeline<TInput, TNextOutput>
         {
-            private Pipeline<TInput, TOutput> _previousPipeline;
-            private Func<TOutput, TNextOutput> _lastStage; 
+            private readonly Pipeline<TInput, TOutput> _previousPipeline;
+            private readonly Func<TOutput, TNextOutput> _lastStage; 
 
             public PipelineExtension(Pipeline<TInput, TOutput> previousStagePipeline, Func<TOutput, TNextOutput> lastStage)
             {
@@ -67,7 +71,11 @@ namespace Parte1
 
             protected override void DoFillBuffer( IEnumerable<TInput> source, BlockingCollection<TNextOutput> outputBuffer )
             {
-                Parallel.ForEach(_previousPipeline.Run(source, new CancellationToken(false)), (element) => outputBuffer.Add(_lastStage(element)));
+                foreach( var element in _previousPipeline.Run(source))
+                {
+                    outputBuffer.Add(_lastStage(element));
+                }
+                outputBuffer.CompleteAdding();
             }
         }
     }

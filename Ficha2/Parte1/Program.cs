@@ -37,6 +37,13 @@ namespace Parte1
                 Console.Write( " " );
             }
             Console.WriteLine();
+            var source2 = 20.To( 30 );
+            foreach ( string i in p1.Run( source2 ) )
+            {
+                Console.Write( i );
+                Console.Write( " " );
+            }
+            Console.WriteLine();
             Console.WriteLine("{0} Tasks Ran", NumberOfTasks );
         }
 
