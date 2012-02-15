@@ -3,15 +3,18 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Parte1_3;
 
-namespace Parte1
+namespace Parte1_4
 {
     public class Pipeline<TInput, TOutput>
     {
         private readonly Func<TInput, TOutput> _currentStage;
+        private readonly ThreadPerTaskScheduler _pipe;
 
         protected Pipeline()
         {
+            _pipe = new ThreadPerTaskScheduler();
         }
 
         public Pipeline( Func<TInput, TOutput> stage ) : this()
@@ -33,7 +36,8 @@ namespace Parte1
         {
             var outputBuffer = new BlockingCollection<TOutput>();
             ++Program.NumberOfTasks;
-            var task = Task.Factory.StartNew( () => DoFillBuffer( source, outputBuffer ), token, TaskCreationOptions.None, TaskScheduler.Default );
+            //var task = Task.Factory.StartNew( () => DoFillBuffer( source, outputBuffer ), token, TaskCreationOptions.None, TaskScheduler.Default );
+            var task = Task.Factory.StartNew( () => DoFillBuffer( source, outputBuffer ), token, TaskCreationOptions.None, _pipe );
             
             foreach ( var outputElement in outputBuffer.GetConsumingEnumerable( token ) )
             {
