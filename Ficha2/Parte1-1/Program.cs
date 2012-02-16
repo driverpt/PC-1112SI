@@ -13,16 +13,37 @@ namespace Parte1_1
 
         }
 
-        public static ParallelLoopResult For(int start, int end, ParallelOptions options ,Action<int> body)
+        public static ParallelLoopResult For( int start, int end, ParallelOptions options, Action<int> body )
         {
-            int threadCount = Environment.ProcessorCount;
-            int blockSize = (end - start + 1) / threadCount;
-            Task[] tasks = new Task[threadCount];
-            for(int count = 0; count < threadCount; ++count)
+            // Following the HAPPY PATH :)
+            // Problem : If the division result is a decimal number
+            var segment = ( ( end - start ) / options.MaxDegreeOfParallelism );
+            var totalSplits = ( end - start ) / segment;
+
+            Task task = new Task( () =>
             {
-                tasks[count] = new Task();
+                for ( int i = 0 ; i < totalSplits ; ++i )
+                {
+                    int i2 = i;
+                    Task.Factory.StartNew( () =>
+                                               {
+                                                   int i1 = i2;
+                                                   Console.WriteLine( "Start -> {0}", start + ( i1 * segment ) );
+                                                   Console.WriteLine( "End   -> {0}", start + segment + ( i1 * segment ) );
+                                                   for ( int j = start + ( i1 * segment ) ; j < start + segment + ( i1 * segment ) ; ++j )
+                                                   {
+                                                       body( j );
+                                                   }
+                                               },
+                                           TaskCreationOptions.AttachedToParent );
+                }
             }
-            return new ParallelLoopResult();
+            );
+            task.Start( options.TaskScheduler );
+            task.Wait( options.CancellationToken );
+
+            return Parallel.For(0, 0, (x) => Console.WriteLine( "Completed" ) );
         }
+
     }
 }
