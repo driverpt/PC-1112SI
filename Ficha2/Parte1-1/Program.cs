@@ -39,23 +39,14 @@ namespace Parte1_1
             return Parallel.ForEach(nums,options, i2 => Task.Factory.StartNew(() =>
                                                                                 {
                                                                                     int i1 = i2;
-                                                                                    Console.WriteLine("Start -> {0}",
-                                                                                                      start +
-                                                                                                      (i1*segment));
-                                                                                    Console.WriteLine("End   -> {0}",
-                                                                                                      start + segment +
-                                                                                                      (i1*segment));
-                                                                                    for (int j = start + (i1*segment);
-                                                                                         j <
-                                                                                         start + segment +
-                                                                                         (i1*segment);
-                                                                                         ++j)
+                                                                                    Console.WriteLine("Start -> {0}",start +(i1*segment));
+                                                                                    Console.WriteLine("End   -> {0}",start + segment +(i1*segment));
+                                                                                    for (int j = start + (i1*segment);j < start + segment + (i1*segment);++j)
                                                                                     {
                                                                                         body(j);
                                                                                     }
                                                                                 },
                                                                             TaskCreationOptions.AttachedToParent));
         }
-        }
-
+      }
     }
