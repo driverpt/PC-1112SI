@@ -46,7 +46,7 @@ namespace BitTorrentServer
         /// </summary>
         private readonly IPEndPoint[] noLocations;
 
-        private readonly object _monitor;
+        private readonly object _monitor = new object();
 
         /// <summary>
         /// Initiates the store instance.

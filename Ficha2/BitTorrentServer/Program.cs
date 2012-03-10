@@ -80,6 +80,7 @@ namespace BitTorrentServer
             try
             {
                 new Listener( port ).Run( log );
+                Console.ReadLine();
             }
             finally
             {

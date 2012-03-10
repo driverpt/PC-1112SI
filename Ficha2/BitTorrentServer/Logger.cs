@@ -44,6 +44,7 @@ namespace BitTorrentServer
                 _startTime = DateTime.Now;
                 LogMessage(String.Format("::- LOG STARTED @ {0} -::\n\n", DateTime.Now));
                 _workerThread = new Thread(ProcessRequests) { Priority = ThreadPriority.Lowest };
+                _workerThread.Start();
             }
         }
 
@@ -88,15 +89,5 @@ namespace BitTorrentServer
                 _messagesToLog.CompleteAdding();
             }
         }
-
-        private class MessageLog
-        {
-            public string txt { get; private set; }
-            public MessageLog( string msg )
-            {
-                txt = msg;
-            }
-        }
-
     }
 }

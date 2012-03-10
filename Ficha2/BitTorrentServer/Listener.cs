@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace BitTorrentServer
@@ -20,33 +21,28 @@ namespace BitTorrentServer
         /// <param name="_portNumber"> The TCP port number to be used.</param>
         public Listener( int _portNumber ) { portNumber = _portNumber; }
 
-        /// <summary>
-        ///	Server's main loop implementation.
-        /// </summary>
+        public static ManualResetEvent tcpClientConnec = new ManualResetEvent(false);
+
+
         /// <param name="log"> The Logger instance to be used.</param>
+        /// 
+        private volatile bool shutdown = false;
+        private Logger log;
+        private TcpListener srv;
         public void Run( Logger log )
         {
-            TcpListener srv = null;
+            srv = null;
+            this.log = log;
             try
             {
-                srv = new TcpListener( IPAddress.Loopback, portNumber );
+                srv = new TcpListener(IPAddress.Loopback, portNumber);
                 srv.Start();
-                while ( true )
+                while (!shutdown)
                 {
-                    log.LogMessage( "Listener - Waiting for connection requests." );
-                    using ( TcpClient socket = srv.AcceptTcpClient() )
-                    {
-                        socket.LingerState = new LingerOption( true, 10 );
-                        log.LogMessage( String.Format( "Listener - Connection established with {0}.",
-                                                       socket.Client.RemoteEndPoint ) );
-                        // Instantiating protocol handler and associate it to the current TCP connection
-                        Handler protocolHandler = new Handler( socket.GetStream(), log );
-                        // Synchronously process requests made through de current TCP connection
-                        Task.Factory.StartNew((handler) => ((Handler) handler).Run(), protocolHandler);
-                        //protocolHandler.Run();
-                    }
-
-                    Program.ShowInfo( Store.Instance );
+                    tcpClientConnec.Reset();
+                    Console.WriteLine("Waiting for a connection...");
+                    srv.BeginAcceptTcpClient(new AsyncCallback(DoAcceptTcpClientCallback), srv);
+                    tcpClientConnec.WaitOne();
                 }
             }
             finally
@@ -57,6 +53,27 @@ namespace BitTorrentServer
                     srv.Stop();    
                 }
             }
+        }
+        public void DoAcceptTcpClientCallback(IAsyncResult ar)
+        {
+            Console.WriteLine("DoAcceptTcpClientCallback");
+            TcpListener listener = (TcpListener)ar.AsyncState;
+            TcpClient socket = listener.EndAcceptTcpClient(ar);
+            socket.LingerState = new LingerOption(true, 10);
+            log.LogMessage(String.Format("Listener - Connection established with {0}.",
+                socket.Client.RemoteEndPoint));
+            // Instantiating protocol handler and associate it to the current TCP connection
+            Handler protocolHandler = new Handler(socket.GetStream(), log);
+            tcpClientConnec.Set();
+            // Synchronously process requests made through de current TCP connection
+            Task.Factory.StartNew((handler) => ((Handler)handler).Run(), protocolHandler);
+            //protocolHandler.Run();
+            Program.ShowInfo(Store.Instance);
+        }
+
+        public void Stop()
+        {
+            shutdown = true;
         }
 
     }
