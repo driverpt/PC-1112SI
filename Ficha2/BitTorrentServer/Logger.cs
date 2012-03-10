@@ -66,7 +66,7 @@ namespace BitTorrentServer
         {
             lock( _messagesToLog )
             {
-                _messagesToLog.Add(String.Format("{0}: {1}", DateTime.Now, msg));    
+                _messagesToLog.Add(String.Format("{0}: {1}", DateTime.Now, msg));
             }
         }
 
@@ -80,14 +80,12 @@ namespace BitTorrentServer
             lock( _monitor )
             {
                 long elapsed = DateTime.Now.Ticks - _startTime.Ticks;
-                _writer.WriteLine();
                 LogMessageNewLine();
                 LogMessage(String.Format("Running for {0} second(s)", elapsed / 10000000L));
                 LogMessage(String.Format("Number of request(s): {0}", _numRequests));
                 LogMessageNewLine();
                 LogMessage(String.Format("::- LOG STOPPED @ {0} -::", DateTime.Now));
                 _messagesToLog.CompleteAdding();
-//                _writer.Close();                
             }
         }
 
