@@ -79,7 +79,8 @@ namespace BitTorrentServer
             log.Start();
             try
             {
-                new Listener( port ).Run( log );
+                Listener mylistener = new Listener(port);
+                mylistener.Run(log);
                 Console.ReadLine();
             }
             finally

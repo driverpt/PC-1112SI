@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -36,7 +35,7 @@ namespace Parte1
             task.Start( options.TaskScheduler );
             task.Wait( options.CancellationToken );
 
-            return Parallel.For(0, 0, (x) => Console.WriteLine( "Completed" ) );
+            return Parallel.For(0, 0, x => Console.WriteLine( "Completed" ) );
         }
 
         public static int NumberOfTasks { get; set; }
@@ -90,7 +89,7 @@ namespace Parte1
                                   MaxDegreeOfParallelism = 4,
                                   TaskScheduler = TaskScheduler.Default
                               };
-            ParallelLoopResult result = Program.For(0, 100, options, (arr) => Console.Write(arr + "-") );
+            ParallelLoopResult result = For(0, 100, options, (arr) => Console.Write(arr + "-") );
             Console.WriteLine( result.IsCompleted );
             
         }

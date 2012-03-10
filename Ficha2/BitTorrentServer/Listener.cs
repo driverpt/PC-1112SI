@@ -21,36 +21,35 @@ namespace BitTorrentServer
         /// <param name="_portNumber"> The TCP port number to be used.</param>
         public Listener( int _portNumber ) { portNumber = _portNumber; }
 
-        public static ManualResetEvent tcpClientConnec = new ManualResetEvent(false);
+        public static ManualResetEvent _tcpClientConnec = new ManualResetEvent(false);
 
+        private volatile bool _shutdown;
+        private Logger _log;
+        private TcpListener _srv;
 
         /// <param name="log"> The Logger instance to be used.</param>
-        /// 
-        private volatile bool shutdown = false;
-        private Logger log;
-        private TcpListener srv;
         public void Run( Logger log )
         {
-            srv = null;
-            this.log = log;
+            _srv = null;
+            _log = log;
             try
             {
-                srv = new TcpListener(IPAddress.Loopback, portNumber);
-                srv.Start();
-                while (!shutdown)
+                _srv = new TcpListener(IPAddress.Loopback, portNumber);
+                _srv.Start();
+                while (!_shutdown)
                 {
-                    tcpClientConnec.Reset();
+                    _tcpClientConnec.Reset();
                     Console.WriteLine("Waiting for a connection...");
-                    srv.BeginAcceptTcpClient(new AsyncCallback(DoAcceptTcpClientCallback), srv);
-                    tcpClientConnec.WaitOne();
+                    _srv.BeginAcceptTcpClient((DoAcceptTcpClientCallback), _srv);
+                    _tcpClientConnec.WaitOne();
                 }
             }
             finally
             {
-                log.LogMessage( "Listener - Ending." );
-                if ( srv != null )
+                _log.LogMessage( "Listener - Ending." );
+                if ( _srv != null )
                 {
-                    srv.Stop();    
+                    _srv.Stop();    
                 }
             }
         }
@@ -60,20 +59,20 @@ namespace BitTorrentServer
             TcpListener listener = (TcpListener)ar.AsyncState;
             TcpClient socket = listener.EndAcceptTcpClient(ar);
             socket.LingerState = new LingerOption(true, 10);
-            log.LogMessage(String.Format("Listener - Connection established with {0}.",
+            _log.LogMessage(String.Format("Listener - Connection established with {0}.",
                 socket.Client.RemoteEndPoint));
             // Instantiating protocol handler and associate it to the current TCP connection
-            Handler protocolHandler = new Handler(socket.GetStream(), log);
-            tcpClientConnec.Set();
+            Handler protocolHandler = new Handler(socket.GetStream(), _log);
+            _tcpClientConnec.Set();
             // Synchronously process requests made through de current TCP connection
-            Task.Factory.StartNew((handler) => ((Handler)handler).Run(), protocolHandler);
+            Task.Factory.StartNew(handler => ((Handler)handler).Run(), protocolHandler);
             //protocolHandler.Run();
             Program.ShowInfo(Store.Instance);
         }
 
         public void Stop()
         {
-            shutdown = true;
+            _shutdown = true;
         }
 
     }
