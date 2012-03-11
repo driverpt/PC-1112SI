@@ -7,6 +7,7 @@
  * Código base para a 2ª Série de Exercícios.
  */
 
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -39,7 +40,7 @@ namespace BitTorrentServer
         /// <summary>
         /// The dictionary instance that holds the tracked files information.
         /// </summary>
-        private readonly Dictionary<string, HashSet<IPEndPoint>> _store;
+        private readonly ConcurrentDictionary<string, HashSet<IPEndPoint>> _store;
 
         /// <summary>
         /// Empty array instance used to report the absence of tracking information for a particular file.
@@ -53,7 +54,7 @@ namespace BitTorrentServer
         /// </summary>
         private Store()
         {
-            _store = new Dictionary<string, HashSet<IPEndPoint>>();
+            _store = new ConcurrentDictionary<string, HashSet<IPEndPoint>>();
             noLocations = new IPEndPoint[0];
         }
 
@@ -98,9 +99,11 @@ namespace BitTorrentServer
                 bool result = locations.Remove(client);
 
                 if (result && locations.Count == 0)
+                {
+                    HashSet<IPEndPoint> value1;
                     // Last client hosting the tracked file. Remove it from the store.
-                    _store.Remove(fileName);
-
+                    _store.TryRemove(fileName, out value1);
+                }
                 return result;
             }
         }

@@ -158,6 +158,7 @@ namespace BitTorrentServer
         /// <param name="log">the Logger instance to be used.</param>
         public Handler( Stream connection, Logger log )
         {
+            Console.WriteLine("Handler Created");
             this.log = log;
             output = new StreamWriter( connection );
             input = new StreamReader( connection );
