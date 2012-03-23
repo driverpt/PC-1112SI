@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Text;
+using System.Threading;
 
 namespace BitTorrentServer
 {
@@ -172,9 +174,14 @@ namespace BitTorrentServer
             try
             {
                 string requestType;
+                var reader = new AsyncStreamReader(input);
                 // Read request type (the request's first line)
                 while ( ( requestType = input.ReadLine() ) != null && requestType != string.Empty )
                 {
+                    reader.BeginReadLine(log, (result) =>
+                                                  {
+
+                                                  }, null);
                     requestType = requestType.ToUpper();
                     if ( !MESSAGE_HANDLERS.ContainsKey( requestType ) )
                     {
@@ -195,6 +202,165 @@ namespace BitTorrentServer
                 input.Close();
                 output.Close();
             }
+        }
+
+        public void ReadCommand(IAsyncResult result)
+        {
+            var state = result.AsyncState as AsyncStreamReader;
+            if( state == null )
+            {
+                throw new InvalidOperationException();
+            }
+            var requestType = state.EndReadLine(result);
+
+        }
+
+        public void ReadNextLine()
+        {
+            
+        }
+
+        public static void QueueHandlerWorkItem(Action<string> action, AsyncStreamReader reader)
+        {
+            
+        }
+
+        private class HandlerWorkItem
+        {
+            private Action<string> callback;
+            private object caller;
+        }
+    }
+
+    internal class AsyncStreamReaderResult : IAsyncResult
+    {
+        private string result;
+        private Exception exception;
+        private readonly object monitor = new object();
+        private readonly ManualResetEvent handle;
+
+        public AsyncStreamReaderResult(AsyncCallback cb, object asyncstate)
+        {
+            handle = new ManualResetEvent(false);
+            Callback = cb;
+            AsyncState = asyncstate;
+        }
+
+        public bool IsCompleted { get; private set; }
+        public AsyncCallback Callback { get; private set; }
+
+        public WaitHandle AsyncWaitHandle
+        {
+            get { return handle; }
+        }
+
+        public object AsyncState { get; private set; }
+
+        public bool CompletedSynchronously
+        {
+            get { return false; }
+        }
+
+        public string GetResult( int timeout )
+        {
+            if ( !handle.WaitOne(timeout) )
+            {
+                throw new ThreadInterruptedException();
+            }
+            return result;
+        }
+
+        public void SetResult(string t)
+        {
+            lock(monitor)
+            {
+                if (IsCompleted)
+                {
+                    throw new InvalidOperationException();
+                }
+                result = t;
+                IsCompleted = true;
+                handle.Set();
+            }
+        }
+
+        public void SetException(Exception t)
+        {
+            lock(monitor)
+            {
+                if ( IsCompleted )
+                {
+                    throw new InvalidOperationException();
+                }
+                exception = t;
+                IsCompleted = true;
+                handle.Set();
+            }
+        }
+    }
+
+    public class AsyncStreamReader : TextReader
+    {
+        private const int BUFFER_SIZE = 4096;
+        private readonly StreamReader _reader;
+        
+        public AsyncStreamReader(Stream stream)
+        {
+            _reader = new StreamReader( stream );
+        }
+
+        public AsyncStreamReader(StreamReader reader)
+        {
+            _reader = reader;
+        }
+
+        public IAsyncResult BeginReadLine( Logger log, AsyncCallback cb, object state )
+        {
+            var result = new AsyncStreamReaderResult(cb, state);
+            log.LogMessage("Beggining Executing ReadLine in Alt Thread");
+            ThreadPool.QueueUserWorkItem(o =>
+                                             {
+                                                 try
+                                                 {
+                                                     result.SetResult(ReadLine());
+                                                     log.LogMessage("Line Read");
+                                                 }
+                                                 catch(Exception exception)
+                                                 {
+                                                     log.LogMessage("Exception occured");
+                                                     result.SetException(exception);
+                                                 }
+                                                 finally
+                                                 {
+                                                     cb(result);
+                                                 }
+                                             });
+            return result;
+        }
+
+        private new string ReadLine()
+        {
+            return _reader.ReadLine();
+        }
+
+        public string EndReadLine( IAsyncResult result )
+        {
+            return EndReadLine(result, Timeout.Infinite);
+        }
+
+        public string EndReadLine( IAsyncResult result, int timeout )
+        {
+            var res = result as AsyncStreamReaderResult;
+            if( res == null )
+            {
+                throw new InvalidOperationException("Invalid Result Object");
+            }
+            return res.GetResult(timeout);
+        }
+
+        public void Shutdown()
+        {
+            _reader.Close();
         }
     }
 }
