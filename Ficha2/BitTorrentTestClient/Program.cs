@@ -13,7 +13,8 @@ using System.IO;
 using System.Net.Sockets;
 using System.Net;
 
-namespace BitTorrentTestClient {
+namespace BitTorrentTestClient 
+{
     class Program
     {
         private const int PORT = 8888;

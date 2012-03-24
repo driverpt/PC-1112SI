@@ -2,11 +2,80 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace BitTorrentServer
 {
+    public interface IMessageHandler
+    {
+        void ProcessCommand(StreamReader input, StreamWriter output, Logger log);
+    }
+
+    public abstract class MessageHandler : IMessageHandler
+    {
+
+        public string MessageHandlerName { get; private set; }
+
+        protected MessageHandler(string name)
+        {
+            MessageHandlerName = name;
+        }
+
+        public static void RegisterMessageHandler( IMessageHandler handler )
+        {
+            
+        }
+
+        public static void GetMessageHandler( string name )
+        {
+            
+        }
+
+        public void ProcessCommand(StreamReader input, StreamWriter output, Logger log)
+        {
+        }
+
+        protected abstract void ProcessMessage(string message, Logger log);
+    }
+
+    public class RegisterMessageHandler : MessageHandler
+    {
+        public RegisterMessageHandler(string name)
+            : base(name)
+        {
+        }
+
+        public void PreProcessCommand(StreamReader input, StreamWriter output, Logger log)
+        {
+
+        }
+
+        protected override void ProcessMessage(string message, Logger log)
+        {
+            // Read message payload, terminated by an empty line. 
+            // Each payload line has the following format
+            // <filename>:<ipAddress>:<portNumber>
+            string[] triple = message.Split(':');
+            if (triple.Length != 3)
+            {
+                log.LogMessage("Handler - Invalid REGISTER message.");
+                return;
+            }
+            IPAddress ipAddress = IPAddress.Parse(triple[1]);
+            ushort port;
+            if (!ushort.TryParse(triple[2], out port))
+            {
+                log.LogMessage("Handler - Invalid REGISTER message.");
+                return;
+            }
+            Store.Instance.Register(triple[0], new IPEndPoint(ipAddress, port));
+        }
+
+        // This request message does not have a corresponding response message, hence, 
+        // nothing is sent to the client.
+    }
+
     /// <summary>
     /// Handles client requests.
     /// </summary>
@@ -31,29 +100,29 @@ namespace BitTorrentServer
         /// <summary>
         /// Handles REGISTER messages.
         /// </summary>
-        private static void ProcessRegisterMessage( StreamReader input, StreamWriter output, Logger log )
+        private static void ProcessRegisterMessage(StreamReader input, StreamWriter output, Logger log)
         {
             // Read message payload, terminated by an empty line. 
             // Each payload line has the following format
             // <filename>:<ipAddress>:<portNumber>
             string line;
-            
-            while ( ( line = input.ReadLine() ) != null && line != string.Empty )
+
+            while ((line = input.ReadLine()) != null && line != string.Empty)
             {
-                string[] triple = line.Split( ':' );
-                if ( triple.Length != 3 )
+                string[] triple = line.Split(':');
+                if (triple.Length != 3)
                 {
-                    log.LogMessage( "Handler - Invalid REGISTER message." );
+                    log.LogMessage("Handler - Invalid REGISTER message.");
                     return;
                 }
-                IPAddress ipAddress = IPAddress.Parse( triple[1] );
+                IPAddress ipAddress = IPAddress.Parse(triple[1]);
                 ushort port;
-                if ( !ushort.TryParse( triple[2], out port ) )
+                if (!ushort.TryParse(triple[2], out port))
                 {
-                    log.LogMessage( "Handler - Invalid REGISTER message." );
+                    log.LogMessage("Handler - Invalid REGISTER message.");
                     return;
                 }
-                Store.Instance.Register( triple[0], new IPEndPoint( ipAddress, port ) );
+                Store.Instance.Register(triple[0], new IPEndPoint(ipAddress, port));
             }
 
             // This request message does not have a corresponding response message, hence, 
@@ -63,28 +132,28 @@ namespace BitTorrentServer
         /// <summary>
         /// Handles UNREGISTER messages.
         /// </summary>
-        private static void ProcessUnregisterMessage( StreamReader input, StreamWriter output, Logger log )
+        private static void ProcessUnregisterMessage(StreamReader input, StreamWriter output, Logger log)
         {
             // Read message payload, terminated by an empty line. 
             // Each payload line has the following format
             // <filename>:<ipAddress>:<portNumber>
             string line;
-            while ( ( line = input.ReadLine() ) != null && line != string.Empty )
+            while ((line = input.ReadLine()) != null && line != string.Empty)
             {
-                string[] triple = line.Split( ':' );
-                if ( triple.Length != 3 )
+                string[] triple = line.Split(':');
+                if (triple.Length != 3)
                 {
-                    log.LogMessage( "Handler - Invalid UNREGISTER message." );
+                    log.LogMessage("Handler - Invalid UNREGISTER message.");
                     return;
                 }
-                IPAddress ipAddress = IPAddress.Parse( triple[1] );
+                IPAddress ipAddress = IPAddress.Parse(triple[1]);
                 ushort port;
-                if ( !ushort.TryParse( triple[2], out port ) )
+                if (!ushort.TryParse(triple[2], out port))
                 {
-                    log.LogMessage( "Handler - Invalid UNREGISTER message." );
+                    log.LogMessage("Handler - Invalid UNREGISTER message.");
                     return;
                 }
-                Store.Instance.Unregister( triple[0], new IPEndPoint( ipAddress, port ) );
+                Store.Instance.Unregister(triple[0], new IPEndPoint(ipAddress, port));
             }
 
             // This request message does not have a corresponding response message, hence, 
@@ -94,7 +163,7 @@ namespace BitTorrentServer
         /// <summary>
         /// Handles LIST_FILES messages.
         /// </summary>
-        private static void ProcessListFilesMessage( StreamReader input, StreamWriter output, Logger log )
+        private static void ProcessListFilesMessage(StreamReader input, StreamWriter output, Logger log)
         {
             // Request message does not have a payload.
             // Read end message mark (empty line)
@@ -105,8 +174,8 @@ namespace BitTorrentServer
             // Send response message. 
             // The message is composed of multiple lines and is terminated by an empty one.
             // Each line contains a name of a tracked file.
-            foreach ( string file in trackedFiles )
-                output.WriteLine( file );
+            foreach (string file in trackedFiles)
+                output.WriteLine(file);
 
             // End response and flush it.
             output.WriteLine();
@@ -116,26 +185,27 @@ namespace BitTorrentServer
         /// <summary>
         /// Handles LIST_LOCATIONS messages.
         /// </summary>
-        private static void ProcessListLocationsMessage( StreamReader input, StreamWriter output, Logger log )
+        private static void ProcessListLocationsMessage(StreamReader input, StreamWriter output, Logger log)
         {
             // Request message payload is composed of a single line containing the file name.
             // The end of the message's payload is marked with an empty line
             string line = input.ReadLine();
             input.ReadLine();
 
-            IPEndPoint[] fileLocations = Store.Instance.GetFileLocations( line );
+            IPEndPoint[] fileLocations = Store.Instance.GetFileLocations(line);
 
             // Send response message. 
             // The message is composed of multiple lines and is terminated by an empty one.
             // Each line has the following format
             // <ipAddress>:<portNumber>
-            foreach ( IPEndPoint endpoint in fileLocations )
-                output.WriteLine( string.Format( "{0}:{1}", endpoint.Address, endpoint.Port ) );
+            foreach (IPEndPoint endpoint in fileLocations)
+                output.WriteLine(string.Format("{0}:{1}", endpoint.Address, endpoint.Port));
 
             // End response and flush it.
             output.WriteLine();
             output.Flush();
         }
+
         #endregion
 
         /// <summary>
@@ -158,11 +228,11 @@ namespace BitTorrentServer
         /// </summary>
         /// <param name="connection">The TCP connection to be used.</param>
         /// <param name="log">the Logger instance to be used.</param>
-        public Handler( Stream connection, Logger log )
+        public Handler(Stream connection, Logger log)
         {
             this.log = log;
-            output = new StreamWriter( connection );
-            input = new StreamReader( connection );
+            output = new StreamWriter(connection);
+            input = new StreamReader(connection);
         }
 
 
@@ -171,43 +241,70 @@ namespace BitTorrentServer
         /// </summary>
         public void Run()
         {
-            try
-            {
-                string requestType;
-                var reader = new AsyncStreamReader(input);
-                // Read request type (the request's first line)
-                while ( ( requestType = input.ReadLine() ) != null && requestType != string.Empty )
-                {
-                    reader.BeginReadLine(log, (result) =>
-                                                  {
+            //try
+            //{
+            string requestType;
+            var reader = new AsyncStreamReader(input);
+            // Read request type (the request's first line)
+            var result = reader.BeginReadLine(log, null, null);
+            var token = new CancellationTokenSource();
+            //while ( ( requestType = input.ReadLine() ) != null && requestType != string.Empty )
+            //{
 
-                                                  }, null);
-                    requestType = requestType.ToUpper();
-                    if ( !MESSAGE_HANDLERS.ContainsKey( requestType ) )
-                    {
-                        log.LogMessage( "Handler - Unknown message type. Servicing ending." );
-                        return;
-                    }
-                    // Dispatch request processing
-                    MESSAGE_HANDLERS[requestType]( input, output, log );
-                }
-            }
-            catch ( IOException ioe )
-            {
-                // Connection closed by the client. Log it!
-                log.LogMessage( String.Format( "Handler - Connection closed by client {0}", ioe ) );
-            }
-            finally
-            {
-                input.Close();
-                output.Close();
-            }
+            Task.Factory.StartNew(() =>
+                                      {
+                                          var line = reader.EndReadLine(result);
+                                          if (string.IsNullOrEmpty(line))
+                                          {
+                                              token.Cancel();
+                                          }
+                                          return line;
+                                      }, token.Token).ContinueWith((prev) =>
+                                                                       {
+                                                                           if (!string.IsNullOrEmpty(prev.Result))
+                                                                           {
+                                                                               return
+                                                                                   MESSAGE_HANDLERS[
+                                                                                       prev.Result.ToUpper()];
+                                                                           }
+                                                                           return null;
+                                                                       }, token.Token).ContinueWith((prev) =>
+                                                                                                    prev
+                                                                                                        .Result(input,
+                                                                                                                output,
+                                                                                                                log)
+                )
+                .ContinueWith((prev) => Run(), token.Token);
+            //reader.BeginReadLine(log, (result) =>
+            //                              {
+
+            //                              }, null);
+            //requestType = requestType.ToUpper();
+            //if ( !MESSAGE_HANDLERS.ContainsKey( requestType ) )
+            //{
+            //    log.LogMessage( "Handler - Unknown message type. Servicing ending." );
+            //    return;
+            //}
+            //// Dispatch request processing
+            //MESSAGE_HANDLERS[requestType]( input, output, log );
+            //    }
+            //}
+            //catch ( IOException ioe )
+            //{
+            //    // Connection closed by the client. Log it!
+            //    log.LogMessage( String.Format( "Handler - Connection closed by client {0}", ioe ) );
+            //}
+            //finally
+            //{
+            //    input.Close();
+            //    output.Close();
+            //}
         }
 
         public void ReadCommand(IAsyncResult result)
         {
             var state = result.AsyncState as AsyncStreamReader;
-            if( state == null )
+            if (state == null)
             {
                 throw new InvalidOperationException();
             }
@@ -217,18 +314,7 @@ namespace BitTorrentServer
 
         public void ReadNextLine()
         {
-            
-        }
 
-        public static void QueueHandlerWorkItem(Action<string> action, AsyncStreamReader reader)
-        {
-            
-        }
-
-        private class HandlerWorkItem
-        {
-            private Action<string> callback;
-            private object caller;
         }
     }
 
@@ -261,9 +347,9 @@ namespace BitTorrentServer
             get { return false; }
         }
 
-        public string GetResult( int timeout )
+        public string GetResult(int timeout)
         {
-            if ( !handle.WaitOne(timeout) )
+            if (!handle.WaitOne(timeout))
             {
                 throw new ThreadInterruptedException();
             }
@@ -272,7 +358,7 @@ namespace BitTorrentServer
 
         public void SetResult(string t)
         {
-            lock(monitor)
+            lock (monitor)
             {
                 if (IsCompleted)
                 {
@@ -286,9 +372,9 @@ namespace BitTorrentServer
 
         public void SetException(Exception t)
         {
-            lock(monitor)
+            lock (monitor)
             {
-                if ( IsCompleted )
+                if (IsCompleted)
                 {
                     throw new InvalidOperationException();
                 }
@@ -303,10 +389,10 @@ namespace BitTorrentServer
     {
         private const int BUFFER_SIZE = 4096;
         private readonly StreamReader _reader;
-        
+
         public AsyncStreamReader(Stream stream)
         {
-            _reader = new StreamReader( stream );
+            _reader = new StreamReader(stream);
         }
 
         public AsyncStreamReader(StreamReader reader)
@@ -314,7 +400,7 @@ namespace BitTorrentServer
             _reader = reader;
         }
 
-        public IAsyncResult BeginReadLine( Logger log, AsyncCallback cb, object state )
+        public IAsyncResult BeginReadLine(Logger log, AsyncCallback cb, object state)
         {
             var result = new AsyncStreamReaderResult(cb, state);
             log.LogMessage("Beggining Executing ReadLine in Alt Thread");
@@ -325,7 +411,7 @@ namespace BitTorrentServer
                                                      result.SetResult(ReadLine());
                                                      log.LogMessage("Line Read");
                                                  }
-                                                 catch(Exception exception)
+                                                 catch (Exception exception)
                                                  {
                                                      log.LogMessage("Exception occured");
                                                      result.SetException(exception);
@@ -338,20 +424,20 @@ namespace BitTorrentServer
             return result;
         }
 
-        private new string ReadLine()
+        public new string ReadLine()
         {
             return _reader.ReadLine();
         }
 
-        public string EndReadLine( IAsyncResult result )
+        public string EndReadLine(IAsyncResult result)
         {
             return EndReadLine(result, Timeout.Infinite);
         }
 
-        public string EndReadLine( IAsyncResult result, int timeout )
+        public string EndReadLine(IAsyncResult result, int timeout)
         {
             var res = result as AsyncStreamReaderResult;
-            if( res == null )
+            if (res == null)
             {
                 throw new InvalidOperationException("Invalid Result Object");
             }
