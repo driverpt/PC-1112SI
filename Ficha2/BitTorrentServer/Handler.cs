@@ -9,12 +9,11 @@ namespace BitTorrentServer
 {
     public interface IMessageHandler
     {
-        void ProcessCommand(StreamReader input, StreamWriter output, Logger log);
+        void ProcessCommand(string cmd, Logger log);
     }
 
     public abstract class MessageHandler : IMessageHandler
     {
-
         public string MessageHandlerName { get; private set; }
 
         protected MessageHandler(string name)
@@ -22,21 +21,11 @@ namespace BitTorrentServer
             MessageHandlerName = name;
         }
 
-        public static void RegisterMessageHandler( IMessageHandler handler )
-        {
-            
-        }
-
-        public static void GetMessageHandler( string name )
-        {
-            
-        }
-
         public void ProcessCommand(StreamReader input, StreamWriter output, Logger log)
         {
         }
 
-        protected abstract void ProcessMessage(string message, Logger log);
+        public abstract void ProcessCommand(string message, Logger log);
     }
 
     public class RegisterMessageHandler : MessageHandler
@@ -46,12 +35,7 @@ namespace BitTorrentServer
         {
         }
 
-        public void PreProcessCommand(StreamReader input, StreamWriter output, Logger log)
-        {
-
-        }
-
-        protected override void ProcessMessage(string message, Logger log)
+        public override void ProcessCommand(string message, Logger log)
         {
             // Read message payload, terminated by an empty line. 
             // Each payload line has the following format
@@ -351,7 +335,7 @@ namespace BitTorrentServer
         {
             if (!handle.WaitOne(timeout))
             {
-                throw new ThreadInterruptedException();
+                throw new TimeoutException();
             }
             return result;
         }
@@ -368,6 +352,7 @@ namespace BitTorrentServer
                 IsCompleted = true;
                 handle.Set();
             }
+            Callback(this);
         }
 
         public void SetException(Exception t)
@@ -382,12 +367,13 @@ namespace BitTorrentServer
                 IsCompleted = true;
                 handle.Set();
             }
+            Callback(this);
         }
     }
 
     public class AsyncStreamReader : TextReader
     {
-        private const int BUFFER_SIZE = 4096;
+        public Stream BaseStream { get; private set; }
         private readonly StreamReader _reader;
 
         public AsyncStreamReader(Stream stream)
@@ -395,7 +381,7 @@ namespace BitTorrentServer
             _reader = new StreamReader(stream);
         }
 
-        public AsyncStreamReader(StreamReader reader)
+        public AsyncStreamReader(StreamReader reader) : this(reader.BaseStream)
         {
             _reader = reader;
         }
@@ -404,7 +390,7 @@ namespace BitTorrentServer
         {
             var result = new AsyncStreamReaderResult(cb, state);
             log.LogMessage("Beggining Executing ReadLine in Alt Thread");
-            ThreadPool.QueueUserWorkItem(o =>
+            Task.Factory.StartNew(() =>
                                              {
                                                  try
                                                  {
@@ -415,10 +401,6 @@ namespace BitTorrentServer
                                                  {
                                                      log.LogMessage("Exception occured");
                                                      result.SetException(exception);
-                                                 }
-                                                 finally
-                                                 {
-                                                     cb(result);
                                                  }
                                              });
             return result;

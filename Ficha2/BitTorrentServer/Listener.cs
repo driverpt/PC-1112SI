@@ -16,9 +16,15 @@ namespace BitTorrentServer
         /// </summary>
         private readonly int portNumber;
 
+        private readonly HandlerDispatcher _dispatcher;
+
         /// <summary> Initiates a tracking server instance.</summary>
         /// <param name="_portNumber"> The TCP port number to be used.</param>
-        public Listener( int _portNumber ) { portNumber = _portNumber; }
+        public Listener( int _portNumber, HandlerDispatcher dispatcher )
+        {
+            portNumber = _portNumber;
+            _dispatcher = dispatcher;
+        }
 
         /// <summary>
         ///	Server's main loop implementation.
@@ -40,9 +46,10 @@ namespace BitTorrentServer
                         log.LogMessage( String.Format( "Listener - Connection established with {0}.",
                                                        socket.Client.RemoteEndPoint ) );
                         // Instantiating protocol handler and associate it to the current TCP connection
-                        Handler protocolHandler = new Handler( socket.GetStream(), log );
+                        _dispatcher.ProcessConnection(socket.GetStream(), log);
+                        //Handler protocolHandler = new Handler( socket.GetStream(), log );
                         // Synchronously process requests made through de current TCP connection
-                        Task.Factory.StartNew((handler) => ((Handler) handler).Run(), protocolHandler);
+                        //Task.Factory.StartNew((handler) => ((Handler) handler).Run(), protocolHandler);
                         //protocolHandler.Run();
                     }
 
@@ -58,6 +65,5 @@ namespace BitTorrentServer
                 }
             }
         }
-
     }
 }
