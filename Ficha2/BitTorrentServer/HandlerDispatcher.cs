@@ -21,9 +21,10 @@ namespace BitTorrentServer
         public void ProcessConnection(Stream stream, Logger log)
         {
             AsyncStreamReader reader = new AsyncStreamReader(stream);
-
-            reader.BeginReadLine( log, ( result ) => { 
-                                                         string cmd = reader.EndReadLine(result); 
+            log.LogMessage("Processing Connection");
+            reader.BeginReadLine( log, ( result ) => {
+                                                         string cmd = reader.EndReadLine(result);
+                                                         log.LogMessage(String.Format("Line Read => {0}", cmd));
                                                          Dispatch(cmd, reader, log);
             }, reader );
         }
@@ -32,10 +33,17 @@ namespace BitTorrentServer
         {
             reader.BeginReadLine(log, (result) =>
                                           {
-                                              string ctx = reader.EndReadLine(result);
-                                              if (string.IsNullOrEmpty(ctx))
+                                              var ctx = reader.EndReadLine(result);
+                                              if (ctx == null)
+                                              {
+                                                  reader.Close();
+                                                  Program.ShowInfo(Store.Instance);
+                                                  return;
+                                              }
+                                              if (ctx == string.Empty)
                                               {
                                                   Task.Factory.StartNew(() => ProcessConnection(reader.BaseStream, log));
+                                                  return;
                                               }
                                               cmd.ProcessCommand(ctx, log);
                                               Task.Factory.StartNew(() => HandleMessage(cmd, reader, log));
@@ -46,11 +54,13 @@ namespace BitTorrentServer
         {
             if( !Handlers.ContainsKey(command) )
             {
+                Console.WriteLine("Invalid Operation");
                 // TODO: Initialize MessageHandler. Reply in Stream. Wait for more Commands.
                 throw new InvalidOperationException();
             }
+            Console.WriteLine("Dispatching Command: {0}", command);
             IMessageHandler handler = Handlers[command];
-            Task task = new Task(() => HandleMessage(handler, reader, log));
+            Task.Factory.StartNew(() => HandleMessage(handler, reader, log));
         }
     }
 }

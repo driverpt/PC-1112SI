@@ -40,19 +40,16 @@ namespace BitTorrentServer
                 while ( true )
                 {
                     log.LogMessage( "Listener - Waiting for connection requests." );
-                    using ( TcpClient socket = srv.AcceptTcpClient() )
-                    {
-                        socket.LingerState = new LingerOption( true, 10 );
-                        log.LogMessage( String.Format( "Listener - Connection established with {0}.",
+                    TcpClient socket = srv.AcceptTcpClient();
+                    socket.LingerState = new LingerOption( true, 10 );
+                    log.LogMessage( String.Format( "Listener - Connection established with {0}.",
                                                        socket.Client.RemoteEndPoint ) );
                         // Instantiating protocol handler and associate it to the current TCP connection
-                        _dispatcher.ProcessConnection(socket.GetStream(), log);
-                        //Handler protocolHandler = new Handler( socket.GetStream(), log );
+                     _dispatcher.ProcessConnection(socket.GetStream(), log);
+                     //Handler protocolHandler = new Handler( socket.GetStream(), log );
                         // Synchronously process requests made through de current TCP connection
                         //Task.Factory.StartNew((handler) => ((Handler) handler).Run(), protocolHandler);
                         //protocolHandler.Run();
-                    }
-
                     Program.ShowInfo( Store.Instance );
                 }
             }

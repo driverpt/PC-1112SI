@@ -60,6 +60,42 @@ namespace BitTorrentServer
         // nothing is sent to the client.
     }
 
+    public class UnregisterMessageHandler : MessageHandler
+    {
+        public UnregisterMessageHandler(string name)
+            : base(name){}
+
+        public override void ProcessCommand(string message, Logger log)
+        {
+            string[] triple = message.Split(':');
+            if (triple.Length != 3)
+            {
+                log.LogMessage("Handler - Invalid UNREGISTER message.");
+                return;
+            }
+            IPAddress ipAddress = IPAddress.Parse(triple[1]);
+            ushort port;
+            if (!ushort.TryParse(triple[2], out port))
+            {
+                log.LogMessage("Handler - Invalid UNREGISTER message.");
+                return;
+            }
+            Store.Instance.Unregister(triple[0], new IPEndPoint(ipAddress, port));
+        }
+    }
+
+    public class ListFilesMessageHandler : MessageHandler
+    {
+        public ListFilesMessageHandler(string name) : base(name)
+        {
+        }
+
+        public override void ProcessCommand(string ignored, Logger log)
+        {
+            throw new NotImplementedException();
+        }
+    } 
+
     /// <summary>
     /// Handles client requests.
     /// </summary>
@@ -400,9 +436,10 @@ namespace BitTorrentServer
                                                  catch (Exception exception)
                                                  {
                                                      log.LogMessage("Exception occured");
+                                                     log.LogMessage(exception.ToString());
                                                      result.SetException(exception);
                                                  }
-                                             });
+                                             } );
             return result;
         }
 

@@ -77,13 +77,17 @@ namespace BitTorrentServer
             // Start servicing
             Logger log = new Logger();
             log.Start();
-            HandlerDispatcher dispatcher = new HandlerDispatcher();
+            var dispatcher = new HandlerDispatcher();
             dispatcher.RegisterMessageHandler("REGISTER", new RegisterMessageHandler("REGISTER"));
-            Listener listener = new Listener(port);
+            var listener = new Listener(port, dispatcher);
             
             try
             {
-                new Listener( port ).Run( log );
+                listener.Run( log );
+            }
+            catch(Exception e )
+            {
+                 Console.WriteLine(e);
             }
             finally
             {
