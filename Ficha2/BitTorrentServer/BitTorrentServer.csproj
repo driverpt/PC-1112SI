@@ -44,6 +44,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Handler.cs" />
+    <Compile Include="HandlerDispatcher.cs" />
     <Compile Include="Listener.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="Program.cs" />
