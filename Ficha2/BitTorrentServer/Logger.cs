@@ -44,17 +44,19 @@ namespace BitTorrentServer
                 _startTime = DateTime.Now;
                 LogMessage(String.Format("::- LOG STARTED @ {0} -::\n\n", DateTime.Now));
                 _workerThread = new Thread(ProcessRequests) { Priority = ThreadPriority.Lowest };
+                _workerThread.Start();
             }
         }
 
         private void ProcessRequests()
         {
-            foreach( var message in _messagesToLog )
+            foreach( var message in _messagesToLog.GetConsumingEnumerable() )
             {
                 _writer.WriteLine(message);
-                IncrementRequests();
             }
+            _writer.WriteLine("Log Closed");
             _writer.Close();
+            
         }
 
         protected void LogMessageNewLine()
@@ -64,16 +66,16 @@ namespace BitTorrentServer
 
         public void LogMessage( string msg )
         {
-            lock( _messagesToLog )
+            lock (_monitor)
             {
                 _messagesToLog.Add(String.Format("{0}: {1}", DateTime.Now, msg));
             }
         }
 
-        public void IncrementRequests()
+        /*public void IncrementRequests()
         {
             ++_numRequests;
-        }
+        }*/
 
         public void Stop()
         {
@@ -88,15 +90,5 @@ namespace BitTorrentServer
                 _messagesToLog.CompleteAdding();
             }
         }
-
-        private class MessageLog
-        {
-            public string txt { get; private set; }
-            public MessageLog( string msg )
-            {
-                txt = msg;
-            }
-        }
-
     }
 }
