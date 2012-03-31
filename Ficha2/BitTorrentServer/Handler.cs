@@ -9,7 +9,7 @@ namespace BitTorrentServer
 {
     public interface IMessageHandler
     {
-        void ProcessCommand(string cmd, Logger log);
+        string ProcessCommand(string cmd, Logger log);
     }
 
     public abstract class MessageHandler : IMessageHandler
@@ -25,7 +25,7 @@ namespace BitTorrentServer
         {
         }
 
-        public abstract void ProcessCommand(string message, Logger log);
+        public abstract string ProcessCommand(string message, Logger log);
     }
 
     public class RegisterMessageHandler : MessageHandler
@@ -35,7 +35,7 @@ namespace BitTorrentServer
         {
         }
 
-        public override void ProcessCommand(string message, Logger log)
+        public override string ProcessCommand(string message, Logger log)
         {
             // Read message payload, terminated by an empty line. 
             // Each payload line has the following format
@@ -44,16 +44,17 @@ namespace BitTorrentServer
             if (triple.Length != 3)
             {
                 log.LogMessage("Handler - Invalid REGISTER message.");
-                return;
+                return "";
             }
             IPAddress ipAddress = IPAddress.Parse(triple[1]);
             ushort port;
             if (!ushort.TryParse(triple[2], out port))
             {
                 log.LogMessage("Handler - Invalid REGISTER message.");
-                return;
+                return "";
             }
             Store.Instance.Register(triple[0], new IPEndPoint(ipAddress, port));
+            return "";
         }
 
         // This request message does not have a corresponding response message, hence, 
@@ -65,22 +66,23 @@ namespace BitTorrentServer
         public UnregisterMessageHandler(string name)
             : base(name){}
 
-        public override void ProcessCommand(string message, Logger log)
+        public override string ProcessCommand(string message, Logger log)
         {
             string[] triple = message.Split(':');
             if (triple.Length != 3)
             {
                 log.LogMessage("Handler - Invalid UNREGISTER message.");
-                return;
+                return "";
             }
             IPAddress ipAddress = IPAddress.Parse(triple[1]);
             ushort port;
             if (!ushort.TryParse(triple[2], out port))
             {
                 log.LogMessage("Handler - Invalid UNREGISTER message.");
-                return;
+                return "";
             }
             Store.Instance.Unregister(triple[0], new IPEndPoint(ipAddress, port));
+            return "";
         }
     }
 
@@ -90,253 +92,257 @@ namespace BitTorrentServer
         {
         }
 
-        public override void ProcessCommand(string ignored, Logger log)
+        public override string ProcessCommand(string ignored, Logger log)
         {
-            throw new NotImplementedException();
+            string[] trackedFiles = Store.Instance.GetTrackedFiles();
+
+            // Send response message. 
+            // The message is composed of multiple lines and is terminated by an empty one.
+            // Each line contains a name of a tracked file.
+            return string.Join("\n", trackedFiles);
+        }
+    }
+
+    public class ListLocationsMessageHandler : MessageHandler
+    {
+        public ListLocationsMessageHandler( string name )
+            : base( name )
+        {
+        }
+
+        public override string ProcessCommand( string filename, Logger log )
+        {
+            // Request message payload is composed of a single line containing the file name.
+            // The end of the message's payload is marked with an empty line
+
+            IPEndPoint[] fileLocations = Store.Instance.GetFileLocations( filename );
+
+            return string.Join("\n", IPEndPointToStringArray(fileLocations) );
+        }
+
+        private string[] IPEndPointToStringArray( IPEndPoint[] endpoints )
+        {
+            string[] ret = new string[endpoints.Length];
+            for( int i = 0; i < endpoints.Length; ++i )
+            {
+                ret[i] = string.Format("{0}:{1}", endpoints[i].Address, endpoints[i].Port);
+            }
+            return ret;
         }
     } 
 
     /// <summary>
     /// Handles client requests.
     /// </summary>
-    public sealed class Handler
-    {
-        #region Message handlers
+    //public sealed class Handler
+    //{
+    //    #region Message handlers
 
-        /// <summary>
-        /// Data structure that supports message processing dispatch.
-        /// </summary>
-        private static readonly Dictionary<string, Action<StreamReader, StreamWriter, Logger>> MESSAGE_HANDLERS;
+    //    /// <summary>
+    //    /// Data structure that supports message processing dispatch.
+    //    /// </summary>
+    //    private static readonly Dictionary<string, Action<StreamReader, StreamWriter, Logger>> MESSAGE_HANDLERS;
 
-        static Handler()
-        {
-            MESSAGE_HANDLERS = new Dictionary<string, Action<StreamReader, StreamWriter, Logger>>();
-            MESSAGE_HANDLERS["REGISTER"] = ProcessRegisterMessage;
-            MESSAGE_HANDLERS["UNREGISTER"] = ProcessUnregisterMessage;
-            MESSAGE_HANDLERS["LIST_FILES"] = ProcessListFilesMessage;
-            MESSAGE_HANDLERS["LIST_LOCATIONS"] = ProcessListLocationsMessage;
-        }
+    //    static Handler()
+    //    {
+    //        MESSAGE_HANDLERS = new Dictionary<string, Action<StreamReader, StreamWriter, Logger>>();
+    //        MESSAGE_HANDLERS["REGISTER"] = ProcessRegisterMessage;
+    //        MESSAGE_HANDLERS["UNREGISTER"] = ProcessUnregisterMessage;
+    //        MESSAGE_HANDLERS["LIST_FILES"] = ProcessListFilesMessage;
+    //        MESSAGE_HANDLERS["LIST_LOCATIONS"] = ProcessListLocationsMessage;
+    //    }
 
-        /// <summary>
-        /// Handles REGISTER messages.
-        /// </summary>
-        private static void ProcessRegisterMessage(StreamReader input, StreamWriter output, Logger log)
-        {
-            // Read message payload, terminated by an empty line. 
-            // Each payload line has the following format
-            // <filename>:<ipAddress>:<portNumber>
-            string line;
+    //    /// <summary>
+    //    /// Handles REGISTER messages.
+    //    /// </summary>
+    //    private static void ProcessRegisterMessage(StreamReader input, StreamWriter output, Logger log)
+    //    {
+    //        // Read message payload, terminated by an empty line. 
+    //        // Each payload line has the following format
+    //        // <filename>:<ipAddress>:<portNumber>
+    //        string line;
 
-            while ((line = input.ReadLine()) != null && line != string.Empty)
-            {
-                string[] triple = line.Split(':');
-                if (triple.Length != 3)
-                {
-                    log.LogMessage("Handler - Invalid REGISTER message.");
-                    return;
-                }
-                IPAddress ipAddress = IPAddress.Parse(triple[1]);
-                ushort port;
-                if (!ushort.TryParse(triple[2], out port))
-                {
-                    log.LogMessage("Handler - Invalid REGISTER message.");
-                    return;
-                }
-                Store.Instance.Register(triple[0], new IPEndPoint(ipAddress, port));
-            }
+    //        while ((line = input.ReadLine()) != null && line != string.Empty)
+    //        {
+    //            string[] triple = line.Split(':');
+    //            if (triple.Length != 3)
+    //            {
+    //                log.LogMessage("Handler - Invalid REGISTER message.");
+    //                return;
+    //            }
+    //            IPAddress ipAddress = IPAddress.Parse(triple[1]);
+    //            ushort port;
+    //            if (!ushort.TryParse(triple[2], out port))
+    //            {
+    //                log.LogMessage("Handler - Invalid REGISTER message.");
+    //                return;
+    //            }
+    //            Store.Instance.Register(triple[0], new IPEndPoint(ipAddress, port));
+    //        }
 
-            // This request message does not have a corresponding response message, hence, 
-            // nothing is sent to the client.
-        }
+    //        // This request message does not have a corresponding response message, hence, 
+    //        // nothing is sent to the client.
+    //    }
 
-        /// <summary>
-        /// Handles UNREGISTER messages.
-        /// </summary>
-        private static void ProcessUnregisterMessage(StreamReader input, StreamWriter output, Logger log)
-        {
-            // Read message payload, terminated by an empty line. 
-            // Each payload line has the following format
-            // <filename>:<ipAddress>:<portNumber>
-            string line;
-            while ((line = input.ReadLine()) != null && line != string.Empty)
-            {
-                string[] triple = line.Split(':');
-                if (triple.Length != 3)
-                {
-                    log.LogMessage("Handler - Invalid UNREGISTER message.");
-                    return;
-                }
-                IPAddress ipAddress = IPAddress.Parse(triple[1]);
-                ushort port;
-                if (!ushort.TryParse(triple[2], out port))
-                {
-                    log.LogMessage("Handler - Invalid UNREGISTER message.");
-                    return;
-                }
-                Store.Instance.Unregister(triple[0], new IPEndPoint(ipAddress, port));
-            }
+    //    /// <summary>
+    //    /// Handles UNREGISTER messages.
+    //    /// </summary>
+    //    private static void ProcessUnregisterMessage(StreamReader input, StreamWriter output, Logger log)
+    //    {
+    //        // Read message payload, terminated by an empty line. 
+    //        // Each payload line has the following format
+    //        // <filename>:<ipAddress>:<portNumber>
+    //        string line;
+    //        while ((line = input.ReadLine()) != null && line != string.Empty)
+    //        {
+    //            string[] triple = line.Split(':');
+    //            if (triple.Length != 3)
+    //            {
+    //                log.LogMessage("Handler - Invalid UNREGISTER message.");
+    //                return;
+    //            }
+    //            IPAddress ipAddress = IPAddress.Parse(triple[1]);
+    //            ushort port;
+    //            if (!ushort.TryParse(triple[2], out port))
+    //            {
+    //                log.LogMessage("Handler - Invalid UNREGISTER message.");
+    //                return;
+    //            }
+    //            Store.Instance.Unregister(triple[0], new IPEndPoint(ipAddress, port));
+    //        }
 
-            // This request message does not have a corresponding response message, hence, 
-            // nothing is sent to the client.
-        }
+    //        // This request message does not have a corresponding response message, hence, 
+    //        // nothing is sent to the client.
+    //    }
 
-        /// <summary>
-        /// Handles LIST_FILES messages.
-        /// </summary>
-        private static void ProcessListFilesMessage(StreamReader input, StreamWriter output, Logger log)
-        {
-            // Request message does not have a payload.
-            // Read end message mark (empty line)
-            input.ReadLine();
+    //    /// <summary>
+    //    /// Handles LIST_FILES messages.
+    //    /// </summary>
+    //    private static void ProcessListFilesMessage(StreamReader input, StreamWriter output, Logger log)
+    //    {
+    //        // Request message does not have a payload.
+    //        // Read end message mark (empty line)
+    //        input.ReadLine();
 
-            string[] trackedFiles = Store.Instance.GetTrackedFiles();
+    //        string[] trackedFiles = Store.Instance.GetTrackedFiles();
 
-            // Send response message. 
-            // The message is composed of multiple lines and is terminated by an empty one.
-            // Each line contains a name of a tracked file.
-            foreach (string file in trackedFiles)
-                output.WriteLine(file);
+    //        // Send response message. 
+    //        // The message is composed of multiple lines and is terminated by an empty one.
+    //        // Each line contains a name of a tracked file.
+    //        foreach (string file in trackedFiles)
+    //            output.WriteLine(file);
 
-            // End response and flush it.
-            output.WriteLine();
-            output.Flush();
-        }
+    //        // End response and flush it.
+    //        output.WriteLine();
+    //        output.Flush();
+    //    }
 
-        /// <summary>
-        /// Handles LIST_LOCATIONS messages.
-        /// </summary>
-        private static void ProcessListLocationsMessage(StreamReader input, StreamWriter output, Logger log)
-        {
-            // Request message payload is composed of a single line containing the file name.
-            // The end of the message's payload is marked with an empty line
-            string line = input.ReadLine();
-            input.ReadLine();
+    //    /// <summary>
+    //    /// Handles LIST_LOCATIONS messages.
+    //    /// </summary>
+    //    private static void ProcessListLocationsMessage(StreamReader input, StreamWriter output, Logger log)
+    //    {
+    //        // Request message payload is composed of a single line containing the file name.
+    //        // The end of the message's payload is marked with an empty line
+    //        string line = input.ReadLine();
+    //        input.ReadLine();
 
-            IPEndPoint[] fileLocations = Store.Instance.GetFileLocations(line);
+    //        IPEndPoint[] fileLocations = Store.Instance.GetFileLocations(line);
 
-            // Send response message. 
-            // The message is composed of multiple lines and is terminated by an empty one.
-            // Each line has the following format
-            // <ipAddress>:<portNumber>
-            foreach (IPEndPoint endpoint in fileLocations)
-                output.WriteLine(string.Format("{0}:{1}", endpoint.Address, endpoint.Port));
+    //        // Send response message. 
+    //        // The message is composed of multiple lines and is terminated by an empty one.
+    //        // Each line has the following format
+    //        // <ipAddress>:<portNumber>
+    //        foreach (IPEndPoint endpoint in fileLocations)
+    //            output.WriteLine(string.Format("{0}:{1}", endpoint.Address, endpoint.Port));
 
-            // End response and flush it.
-            output.WriteLine();
-            output.Flush();
-        }
+    //        // End response and flush it.
+    //        output.WriteLine();
+    //        output.Flush();
+    //    }
 
-        #endregion
+    //    #endregion
 
-        /// <summary>
-        /// The handler's input (from the TCP connection)
-        /// </summary>
-        private readonly StreamReader input;
+    //    /// <summary>
+    //    /// The handler's input (from the TCP connection)
+    //    /// </summary>
+    //    private readonly StreamReader input;
 
-        /// <summary>
-        /// The handler's output (to the TCP connection)
-        /// </summary>
-        private readonly StreamWriter output;
+    //    /// <summary>
+    //    /// The handler's output (to the TCP connection)
+    //    /// </summary>
+    //    private readonly StreamWriter output;
 
-        /// <summary>
-        /// The Logger instance to be used.
-        /// </summary>
-        private readonly Logger log;
+    //    /// <summary>
+    //    /// The Logger instance to be used.
+    //    /// </summary>
+    //    private readonly Logger log;
 
-        /// <summary>
-        ///	Initiates an instance with the given parameters.
-        /// </summary>
-        /// <param name="connection">The TCP connection to be used.</param>
-        /// <param name="log">the Logger instance to be used.</param>
-        public Handler(Stream connection, Logger log)
-        {
-            this.log = log;
-            output = new StreamWriter(connection);
-            input = new StreamReader(connection);
-        }
+    //    /// <summary>
+    //    ///	Initiates an instance with the given parameters.
+    //    /// </summary>
+    //    /// <param name="connection">The TCP connection to be used.</param>
+    //    /// <param name="log">the Logger instance to be used.</param>
+    //    public Handler(Stream connection, Logger log)
+    //    {
+    //        this.log = log;
+    //        output = new StreamWriter(connection);
+    //        input = new StreamReader(connection);
+    //    }
 
 
-        /// <summary>
-        /// Performs request servicing.
-        /// </summary>
-        public void Run()
-        {
-            //try
-            //{
-            string requestType;
-            var reader = new AsyncStreamReader(input);
-            // Read request type (the request's first line)
-            var result = reader.BeginReadLine(log, null, null);
-            var token = new CancellationTokenSource();
-            //while ( ( requestType = input.ReadLine() ) != null && requestType != string.Empty )
-            //{
+    //    /// <summary>
+    //    /// Performs request servicing.
+    //    /// </summary>
+    //    public void Run()
+    //    {
+    //        var reader = new AsyncStreamReader(input);
+    //        // Read request type (the request's first line)
+    //        var result = reader.BeginReadLine(log, null, null);
+    //        var token = new CancellationTokenSource();
+         
+    //        Task.Factory.StartNew(() =>
+    //                                  {
+    //                                      var line = reader.EndReadLine(result);
+    //                                      if (string.IsNullOrEmpty(line))
+    //                                      {
+    //                                          token.Cancel();
+    //                                      }
+    //                                      return line;
+    //                                  }, token.Token).ContinueWith((prev) =>
+    //                                                                   {
+    //                                                                       if (!string.IsNullOrEmpty(prev.Result))
+    //                                                                       {
+    //                                                                           return
+    //                                                                               MESSAGE_HANDLERS[
+    //                                                                                   prev.Result.ToUpper()];
+    //                                                                       }
+    //                                                                       return null;
+    //                                                                   }, token.Token).ContinueWith((prev) =>
+    //                                                                                                prev
+    //                                                                                                    .Result(input,
+    //                                                                                                            output,
+    //                                                                                                            log)
+    //            )
+    //            .ContinueWith(prev => Run(), token.Token);
+    //    }
 
-            Task.Factory.StartNew(() =>
-                                      {
-                                          var line = reader.EndReadLine(result);
-                                          if (string.IsNullOrEmpty(line))
-                                          {
-                                              token.Cancel();
-                                          }
-                                          return line;
-                                      }, token.Token).ContinueWith((prev) =>
-                                                                       {
-                                                                           if (!string.IsNullOrEmpty(prev.Result))
-                                                                           {
-                                                                               return
-                                                                                   MESSAGE_HANDLERS[
-                                                                                       prev.Result.ToUpper()];
-                                                                           }
-                                                                           return null;
-                                                                       }, token.Token).ContinueWith((prev) =>
-                                                                                                    prev
-                                                                                                        .Result(input,
-                                                                                                                output,
-                                                                                                                log)
-                )
-                .ContinueWith((prev) => Run(), token.Token);
-            //reader.BeginReadLine(log, (result) =>
-            //                              {
+    //    public void ReadCommand(IAsyncResult result)
+    //    {
+    //        var state = result.AsyncState as AsyncStreamReader;
+    //        if (state == null)
+    //        {
+    //            throw new InvalidOperationException();
+    //        }
+    //        var requestType = state.EndReadLine(result);
 
-            //                              }, null);
-            //requestType = requestType.ToUpper();
-            //if ( !MESSAGE_HANDLERS.ContainsKey( requestType ) )
-            //{
-            //    log.LogMessage( "Handler - Unknown message type. Servicing ending." );
-            //    return;
-            //}
-            //// Dispatch request processing
-            //MESSAGE_HANDLERS[requestType]( input, output, log );
-            //    }
-            //}
-            //catch ( IOException ioe )
-            //{
-            //    // Connection closed by the client. Log it!
-            //    log.LogMessage( String.Format( "Handler - Connection closed by client {0}", ioe ) );
-            //}
-            //finally
-            //{
-            //    input.Close();
-            //    output.Close();
-            //}
-        }
+    //    }
 
-        public void ReadCommand(IAsyncResult result)
-        {
-            var state = result.AsyncState as AsyncStreamReader;
-            if (state == null)
-            {
-                throw new InvalidOperationException();
-            }
-            var requestType = state.EndReadLine(result);
+    //    public void ReadNextLine()
+    //    {
 
-        }
-
-        public void ReadNextLine()
-        {
-
-        }
-    }
+    //    }
+    //}
 
     internal class AsyncStreamReaderResult : IAsyncResult
     {
@@ -414,27 +420,25 @@ namespace BitTorrentServer
 
         public AsyncStreamReader(Stream stream)
         {
+            BaseStream = stream;
             _reader = new StreamReader(stream);
-        }
-
-        public AsyncStreamReader(StreamReader reader) : this(reader.BaseStream)
-        {
-            _reader = reader;
         }
 
         public IAsyncResult BeginReadLine(Logger log, AsyncCallback cb, object state)
         {
             var result = new AsyncStreamReaderResult(cb, state);
-            log.LogMessage("Beggining Executing ReadLine in Alt Thread");
+//            log.LogMessage("Beggining Executing ReadLine in Alt Thread");
             Task.Factory.StartNew(() =>
                                              {
                                                  try
                                                  {
                                                      result.SetResult(ReadLine());
-                                                     log.LogMessage("Line Read");
+                                                     log.LogMessage(string.Format("Line Read: {0}", result));
                                                  }
                                                  catch (Exception exception)
                                                  {
+                                                     Console.WriteLine( "Exception occured" );
+                                                     Console.WriteLine(exception.ToString());
                                                      log.LogMessage("Exception occured");
                                                      log.LogMessage(exception.ToString());
                                                      result.SetException(exception);

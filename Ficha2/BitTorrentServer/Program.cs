@@ -79,6 +79,9 @@ namespace BitTorrentServer
             log.Start();
             var dispatcher = new HandlerDispatcher();
             dispatcher.RegisterMessageHandler("REGISTER", new RegisterMessageHandler("REGISTER"));
+            dispatcher.RegisterMessageHandler("UNREGISTER", new UnregisterMessageHandler("UNREGISTER"));
+            dispatcher.RegisterMessageHandler( "LIST_FILES", new ListFilesMessageHandler( "LIST_FILES" ) );
+            dispatcher.RegisterMessageHandler( "LIST_LOCATIONS", new ListLocationsMessageHandler( "LIST_LOCATIONS" ) );
             var listener = new Listener(port, dispatcher);
             
             try

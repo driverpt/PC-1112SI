@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace BitTorrentServer
@@ -45,16 +47,52 @@ namespace BitTorrentServer
                                                   Task.Factory.StartNew(() => ProcessConnection(reader.BaseStream, log));
                                                   return;
                                               }
-                                              cmd.ProcessCommand(ctx, log);
-                                              Task.Factory.StartNew(() => HandleMessage(cmd, reader, log));
+                                              Task.Factory.StartNew(() => HandlePayload(cmd, reader, log, null));
+                                          }, reader);
+        }
+
+        private void HandlePayload( IMessageHandler cmd, AsyncStreamReader reader, Logger log, StringBuilder buffer )
+        {
+            if ( buffer == null )
+            {
+                buffer = new StringBuilder();
+            }
+            reader.BeginReadLine(log, (result) =>
+                                          {
+                                              var payload = reader.EndReadLine(result);
+                                              if( string.IsNullOrEmpty(payload))
+                                              {
+                                                  if ( buffer.Length != 0 )
+                                                  {
+                                                      Task.Factory.StartNew(() =>
+                                                                                {
+                                                                                    StreamWriter writer = new StreamWriter(reader.BaseStream);
+                                                                                    foreach (string response in buffer.ToString().Split('\n').Select(line => cmd.ProcessCommand(line, log)).Where(response => !string.IsNullOrEmpty(response)))
+                                                                                    {
+                                                                                        writer.WriteLine(response);
+                                                                                    }
+                                                                                    writer.Close();
+                                                                                });
+                                                  }
+                                                  reader.Close();
+                                                  Task.Factory.StartNew( () => ProcessConnection( reader.BaseStream, log ) );
+                                                  return;
+                                              }
+                                              buffer.Append(buffer);
+                                              Task.Factory.StartNew(() => HandlePayload(cmd, reader, log, buffer));
                                           }, reader);
         }
 
         private void Dispatch(string command, AsyncStreamReader reader, Logger log)
         {
+            Console.WriteLine("Dispatching Command: {0}", command);
             if( !Handlers.ContainsKey(command) )
             {
-                Console.WriteLine("Invalid Operation");
+                StreamWriter writer = new StreamWriter(reader.BaseStream);
+                writer.WriteLine( "Invalid Operation" );
+                writer.Flush();
+                writer.Close();
+                Console.WriteLine( "Invalid Operation" );
                 // TODO: Initialize MessageHandler. Reply in Stream. Wait for more Commands.
                 throw new InvalidOperationException();
             }
