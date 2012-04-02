@@ -26,6 +26,10 @@ namespace BitTorrentServer
             log.LogMessage("Processing Connection");
             reader.BeginReadLine( log, ( result ) => {
                                                          string cmd = reader.EndReadLine(result);
+                                                         if ( string.IsNullOrEmpty(cmd))
+                                                         {
+                                                             return;
+                                                         }
                                                          log.LogMessage(String.Format("Line Read => {0}", cmd));
                                                          Dispatch(cmd, reader, log);
             }, reader );
@@ -38,12 +42,15 @@ namespace BitTorrentServer
                                               var ctx = reader.EndReadLine(result);
                                               if (ctx == null)
                                               {
+                                                  Console.WriteLine("Null String");
                                                   reader.Close();
                                                   Program.ShowInfo(Store.Instance);
                                                   return;
                                               }
                                               if (ctx == string.Empty)
                                               {
+                                                  Console.WriteLine("Empty String");
+                                                  reader.Close();
                                                   Task.Factory.StartNew(() => ProcessConnection(reader.BaseStream, log));
                                                   return;
                                               }
@@ -64,6 +71,7 @@ namespace BitTorrentServer
                                               {
                                                   if ( buffer.Length != 0 )
                                                   {
+                                                      // TODO : Commands that dont require lines read, for example LIST_FILES and LIST_LOCATION, it wont run
                                                       Task.Factory.StartNew(() =>
                                                                                 {
                                                                                     StreamWriter writer = new StreamWriter(reader.BaseStream);
