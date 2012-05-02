@@ -13,7 +13,7 @@ using System.IO;
 using System.Net.Sockets;
 using System.Net;
 
-namespace BitTorrentTestClient
+namespace BitTorrentTestClient 
 {
     class Program
     {
@@ -25,6 +25,8 @@ namespace BitTorrentTestClient
             {
                 client.Connect( IPAddress.Loopback, PORT );
 
+
+                //var output = Console.Out;
                 StreamWriter output = new StreamWriter( client.GetStream() );
 
                 // Send request type line
@@ -36,6 +38,7 @@ namespace BitTorrentTestClient
 
                 // Send message end mark
                 output.WriteLine();
+                output.Flush();
 
                 output.Close();
                 client.Close();

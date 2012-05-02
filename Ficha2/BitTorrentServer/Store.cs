@@ -46,6 +46,8 @@ namespace BitTorrentServer
         /// </summary>
         private readonly IPEndPoint[] noLocations;
 
+        private readonly object _monitor = new object();
+
         /// <summary>
         /// Initiates the store instance.
         /// </summary>
@@ -62,12 +64,19 @@ namespace BitTorrentServer
         /// <param name="client">The file's location.</param>
         public void Register(string fileName, IPEndPoint client)
         {
-            HashSet<IPEndPoint> fileHosts = null;
-            if (!_store.ContainsKey(fileName))
-                _store[fileName] = (fileHosts = new HashSet<IPEndPoint>());
-            else
-                fileHosts = _store[fileName];
-            fileHosts.Add(client);
+            lock ( _monitor )
+            {
+                HashSet<IPEndPoint> fileHosts = null;
+                if ( !_store.ContainsKey( fileName ) )
+                {
+                    _store[fileName] = ( fileHosts = new HashSet<IPEndPoint>() );
+                }
+                else
+                {
+                    fileHosts = _store[fileName];
+                }
+                fileHosts.Add(client);
+            }
         }
 
         /// <summary>
@@ -78,19 +87,22 @@ namespace BitTorrentServer
         /// <returns>A boolean value indicating if the file's location as been unregistered successfully.</returns>
         public bool Unregister(string fileName, IPEndPoint client)
         {
-            // Is file being tracked?
-            if (!_store.ContainsKey(fileName))
-                return false;
+            lock ( _monitor )
+            {
+                // Is file being tracked?
+                if (!_store.ContainsKey(fileName))
+                    return false;
 
-            // File locations are being tracked. Unregister client location.
-            HashSet<IPEndPoint> locations = _store[fileName];
-            bool result = locations.Remove(client);
+                // File locations are being tracked. Unregister client location.
+                HashSet<IPEndPoint> locations = _store[fileName];
+                bool result = locations.Remove(client);
 
-            if (result && locations.Count == 0)
-                // Last client hosting the tracked file. Remove it from the store.
-                _store.Remove(fileName);
+                if (result && locations.Count == 0)
+                    // Last client hosting the tracked file. Remove it from the store.
+                    _store.Remove(fileName);
 
-            return result;
+                return result;
+            }
         }
 
         /// <summary>
@@ -99,7 +111,10 @@ namespace BitTorrentServer
         /// <returns>An array with the tracked files' names.</returns>
         public string[] GetTrackedFiles()
         {
-            return _store.Keys.ToArray();
+            lock(_monitor)
+            {
+                return _store.Keys.ToArray();
+            }
         }
 
         /// <summary>
@@ -109,10 +124,13 @@ namespace BitTorrentServer
         /// <returns>An array with the tracked files' locations.</returns>
         public IPEndPoint[] GetFileLocations(string fileName)
         {
-            IPEndPoint[] locations = noLocations;
-            if (_store.ContainsKey(fileName))
-                locations = _store[fileName].ToArray();
-            return locations;
+            lock ( _monitor )
+            {
+                IPEndPoint[] locations = noLocations;
+                if (_store.ContainsKey(fileName))
+                    locations = _store[fileName].ToArray();
+                return locations;
+            }
         }
 
         #endregion

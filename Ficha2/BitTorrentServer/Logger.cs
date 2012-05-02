@@ -44,17 +44,19 @@ namespace BitTorrentServer
                 _startTime = DateTime.Now;
                 LogMessage(String.Format("::- LOG STARTED @ {0} -::\n\n", DateTime.Now));
                 _workerThread = new Thread(ProcessRequests) { Priority = ThreadPriority.Lowest };
+                _workerThread.Start();
             }
         }
 
         private void ProcessRequests()
         {
-            foreach( var message in _messagesToLog )
+            foreach( var message in _messagesToLog.GetConsumingEnumerable() )
             {
                 _writer.WriteLine(message);
-                IncrementRequests();
             }
+            _writer.WriteLine("Log Closed");
             _writer.Close();
+            
         }
 
         protected void LogMessageNewLine()
@@ -64,41 +66,29 @@ namespace BitTorrentServer
 
         public void LogMessage( string msg )
         {
-            lock( _messagesToLog )
+            lock (_monitor)
             {
-                _messagesToLog.Add(String.Format("{0}: {1}", DateTime.Now, msg));    
+                _messagesToLog.Add(String.Format("{0}: {1}", DateTime.Now, msg));
             }
         }
 
-        public void IncrementRequests()
+        /*public void IncrementRequests()
         {
             ++_numRequests;
-        }
+        }*/
 
         public void Stop()
         {
             lock( _monitor )
             {
                 long elapsed = DateTime.Now.Ticks - _startTime.Ticks;
-                _writer.WriteLine();
                 LogMessageNewLine();
                 LogMessage(String.Format("Running for {0} second(s)", elapsed / 10000000L));
                 LogMessage(String.Format("Number of request(s): {0}", _numRequests));
                 LogMessageNewLine();
                 LogMessage(String.Format("::- LOG STOPPED @ {0} -::", DateTime.Now));
                 _messagesToLog.CompleteAdding();
-//                _writer.Close();                
             }
         }
-
-        private class MessageLog
-        {
-            public string txt { get; private set; }
-            public MessageLog( string msg )
-            {
-                txt = msg;
-            }
-        }
-
     }
 }

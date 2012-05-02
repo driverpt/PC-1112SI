@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Parte1_3;
@@ -48,9 +49,8 @@ namespace Parte1_4
 
         protected virtual void DoFillBuffer( IEnumerable<TInput> source, BlockingCollection<TOutput> outputBuffer )
         {
-            foreach( TInput inputElement in source )
+            foreach (var outputElement in source.Select(inputElement => _currentStage(inputElement)))
             {
-                var outputElement = _currentStage(inputElement);
                 outputBuffer.Add(outputElement);
             }
             outputBuffer.CompleteAdding();
